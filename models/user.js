@@ -12,7 +12,7 @@ class User {
    *    {username, password, first_name, last_name, phone}
    */
 
-  static async register({ username, password, first_name, last_name, phone }) {
+  static async register(username, password, first_name, last_name, phone) {
 
     let hashedPassword = await bcrypt.hash(password, BCRYPT_WORK_FACTOR);
 
