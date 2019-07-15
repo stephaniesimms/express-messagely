@@ -13,7 +13,7 @@ class User {
    */
 
   static async register({ username, password, first_name, last_name, phone }) {
-    
+
     let hashedPassword = await bcrypt.hash(password, BCRYPT_WORK_FACTOR);
 
     const result = await db.query(
@@ -23,8 +23,9 @@ class User {
         first_name,
         last_name,
         phone,
-        join_at)
-      VALUES ($1, $2, $3, $4, $5, current_timestamp)
+        join_at,
+        last_login_at)
+      VALUES ($1, $2, $3, $4, $5, current_timestamp, current_timestamp)
       RETURNING username, password, first_name, last_name, phone`,
       [username, hashedPassword, first_name, last_name, phone]);
 
@@ -37,8 +38,8 @@ class User {
     // Query for user
     const result = await db.query(
       `SELECT password
-      FROM users
-      WHERE username=$1`,
+        FROM users
+        WHERE username=$1`,
       [username]
     );
     const user = result.rows[0];
@@ -49,7 +50,7 @@ class User {
       if (await bcrypt.compare(password, user.password) === true) {
         return true;
       }
-    }      
+    }
   }
 
   /** Update last_login_at for user */
@@ -57,9 +58,9 @@ class User {
   static async updateLoginTimestamp(username) {
     const result = await db.query(
       `UPDATE users
-      SET last_login_at=current_timestamp
-      WHERE username=$1
-      RETURNING username, last_login_at`,
+        SET last_login_at=current_timestamp
+        WHERE username=$1
+        RETURNING username, last_login_at`,
       [username]
     );
 
@@ -67,11 +68,11 @@ class User {
   }
 
   /** All: basic info on all users:
-   * [{username, first_name, last_name, phone}, ...] */
+   * [{username, first_name, last_name}, ...] */
 
   static async all() {
     const results = await db.query(
-      `SELECT username, first_name, last_name, phone 
+      `SELECT username, first_name, last_name 
       FROM users`
     );
 
@@ -87,10 +88,9 @@ class User {
    *          join_at,
    *          last_login_at } */
 
-  static async get(username) { 
-    const results = await db.query(
-      `SELECT username, 
-          password,
+  static async get(username) {
+    const result = await db.query(
+      `SELECT username,
           first_name,
           last_name,
           phone,
@@ -99,8 +99,14 @@ class User {
         FROM users
         WHERE username = $1`,
       [username]);
-      
-    return results.rows[0];
+
+    if (result.rows[0] === undefined) {
+      const err = new Error(`No such user: ${username}`);
+      err.status = 404;
+      throw err;
+    }
+
+    return result.rows[0];
   }
 
   /** Return messages from this user.
@@ -111,8 +117,7 @@ class User {
    *   {username, first_name, last_name, phone}
    */
 
-  static async messagesFrom(username) { 
-    //need to join from messages to users and get all fields to populate return obj
+  static async messagesFrom(username) {
     const results = await db.query(
       `SELECT 
         m.id, 
@@ -130,21 +135,26 @@ class User {
       [username]
     );
 
-    return results.rows.map(row => 
+    if (results.rows === []) {
+      const err = new Error(`No messages from this user: ${username}`);
+      err.status = 404;
+      throw err;
+    }
+
+    return results.rows.map(row =>
       ({
-      id: row.id,
-      to_user: {
-        username: row.username,
-        first_name: row.first_name,
-        last_name: row.last_name,
-        phone: row.phone
-      },
-      body: row.body,
-      sent_at: row.sent_at,
-      read_at: row.read_at
-    }));
+        id: row.id,
+        to_user: {
+          username: row.username,
+          first_name: row.first_name,
+          last_name: row.last_name,
+          phone: row.phone
+        },
+        body: row.body,
+        sent_at: row.sent_at,
+        read_at: row.read_at
+      }));
   }
-  
 
 
   /** Return messages to this user.
@@ -173,8 +183,13 @@ class User {
       [username]
     );
 
-    return results.rows.map(row =>
-      ({
+    if (results.rows === []) {
+      const err = new Error(`No messages to this user: ${username}`);
+      err.status = 404;
+      throw err;
+    }
+
+    return results.rows.map(row => ({
         id: row.id,
         from_user: {
           username: row.username,
