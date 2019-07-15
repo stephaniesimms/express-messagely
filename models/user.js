@@ -3,23 +3,19 @@ const db = require("../db");
 const ExpressError = require("../expressError");
 const bcrypt = require("bcrypt");
 
+const { BCRYPT_WORK_FACTOR } = require('../config');
 
 /** User of the site. */
 
 class User {
-  constructor({ username, password, first_name, last_name, phone }) {
-    this.username = username;
-    this.password = password;
-    this.first_name = first_name;
-    this.last_name = last_name;
-    this.phone = phone;
-  }
   /** register new user -- returns
    *    {username, password, first_name, last_name, phone}
    */
 
   static async register({ username, password, first_name, last_name, phone }) {
     
+    let hashedPassword = await bcrypt.hash(password, BCRYPT_WORK_FACTOR);
+
     const result = await db.query(
       `INSERT INTO users (
         username, 
@@ -30,7 +26,7 @@ class User {
         join_at)
       VALUES ($1, $2, $3, $4, $5, current_timestamp)
       RETURNING username, password, first_name, last_name, phone`,
-      [username, password, first_name, last_name, phone]);
+      [username, hashedPassword, first_name, last_name, phone]);
 
     return result.rows[0];
   }
@@ -79,7 +75,7 @@ class User {
       FROM users`
     );
 
-    return results.rows.map(user => new User(user));
+    return results.rows;
   }
 
   /** Get: get user by username
@@ -101,66 +97,96 @@ class User {
           join_at,
           last_login_at
         FROM users
-        WHERE username = $1
-        RETURNING username, password, first_name, last_name, phone, join_at, last_login_at`,
-        [username]);
+        WHERE username = $1`,
+      [username]);
       
     return results.rows[0];
   }
 
   /** Return messages from this user.
    *
-   * [{id, to_user, body, sent_at, read_at}]
+   * [{id, to_username, body, sent_at, read_at}]
    *
-   * where to_user is
+   * where to_username is
    *   {username, first_name, last_name, phone}
    */
 
   static async messagesFrom(username) { 
+    //need to join from messages to users and get all fields to populate return obj
     const results = await db.query(
-      `SELECT id, to_username, body, sent_at, read_at
-        FROM messages
-        WHERE from_username = $1`,
+      `SELECT 
+        m.id, 
+        m.to_username, 
+        m.body, 
+        m.sent_at, 
+        m.read_at,
+        u.username,
+        u.first_name,
+        u.last_name,
+        u.phone
+      FROM messages AS m
+      JOIN users AS u ON u.username = m.to_username
+      WHERE from_username = $1`,
       [username]
     );
 
-    return  { id, 
+    return results.rows.map(row => 
+      ({
+      id: row.id,
       to_user: {
-        username, 
-        first_name, 
-        last_name, 
-        phone
-      }, 
-      body, sent_at, read_at }
-    }
-
-    // return results.rows.map(row => )
-
+        username: row.username,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        phone: row.phone
+      },
+      body: row.body,
+      sent_at: row.sent_at,
+      read_at: row.read_at
+    }));
   }
+  
 
-  const results = await db.query(
-    `SELECT id, 
-           customer_id AS "customerId", 
-           num_guests AS "numGuests", 
-           start_at AS "startAt", 
-           notes AS "notes"
-         FROM reservations 
-         WHERE customer_id = $1`,
-    [customerId]
-  );
-
-    return results.rows.map(row => new Reservation(row));
-  }
 
   /** Return messages to this user.
    *
-   * [{id, from_user, body, sent_at, read_at}]
+   * [{id, from_username, body, sent_at, read_at}]
    *
-   * where from_user is
+   * where from_username is
    *   {id, first_name, last_name, phone}
    */
 
-  static async messagesTo(username) { }
+  static async messagesTo(username) {
+    const results = await db.query(
+      `SELECT 
+        m.id,
+        m.from_username, 
+        m.body, 
+        m.sent_at, 
+        m.read_at,
+        u.username,
+        u.first_name,
+        u.last_name,
+        u.phone
+      FROM messages AS m
+      JOIN users AS u ON u.username = m.from_username
+      WHERE to_username = $1`,
+      [username]
+    );
+
+    return results.rows.map(row =>
+      ({
+        id: row.id,
+        from_user: {
+          username: row.username,
+          first_name: row.first_name,
+          last_name: row.last_name,
+          phone: row.phone
+        },
+        body: row.body,
+        sent_at: row.sent_at,
+        read_at: row.read_at
+      }));
+  }
 }
 
 
