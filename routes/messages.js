@@ -1,8 +1,8 @@
 const express = require("express");
-const User = require("../models/user");
+const Message = require("../models/message");
+const ExpressError = require("../expressError");
 
-const jwt = require("jsonwebtoken");
-const { SECRET_KEY } = require('../config');
+const { ensureLoggedIn } = require("../middleware/auth");
 
 const router = new express.Router();
 
@@ -19,6 +19,22 @@ const router = new express.Router();
  *
  **/
 
+router.get("/:id", ensureLoggedIn, async function (req, res, next) {
+  try {
+    const username = req.user.username;
+    const message = await Message.get(req.params.id);
+
+    if (message.from_user.username !== username && message.to_user.username !== username) {
+      throw new ExpressError("You are not authorized to read this message", 400);
+    }
+
+    return res.json({ message: message });
+
+  } catch (err) {
+    return next(err);
+  }
+})
+
 
 /** POST / - post message.
  *
@@ -26,6 +42,12 @@ const router = new express.Router();
  *   {message: {id, from_username, to_username, body, sent_at}}
  *
  **/
+
+//ensureLoggedIn
+//await to create a message
+//on message object:
+//assign from_username (from req), to_username (from body), body (from body)
+//return json
 
 
 /** POST/:id/read - mark message as read:
@@ -35,5 +57,10 @@ const router = new express.Router();
  * Make sure that the only the intended recipient can mark as read.
  *
  **/
+
+//ensureLoggedIn
+//
+
+
 
 module.exports = router;

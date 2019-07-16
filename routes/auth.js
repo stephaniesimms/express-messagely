@@ -1,5 +1,6 @@
 const express = require("express");
 const User = require("../models/user");
+const ExpressError = require("../expressError");
 
 const jwt = require("jsonwebtoken");
 const { SECRET_KEY } = require('../config');
@@ -15,7 +16,7 @@ const router = new express.Router();
 router.post("/", async function (req, res, next) {
   try {
     const { username, password } = req.body;
-    const user = User.authenticate(username, password);
+    const user = await User.authenticate(username, password);
 
     if (user) {
       let token = jwt.sign({ username }, SECRET_KEY);

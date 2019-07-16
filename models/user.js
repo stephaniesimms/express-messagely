@@ -76,6 +76,12 @@ class User {
       FROM users`
     );
 
+    if (results.rows === []) {
+      const err = new Error(`We have no users.`);
+      err.status = 404;
+      throw err;
+    }
+
     return results.rows;
   }
 
