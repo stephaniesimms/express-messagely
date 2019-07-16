@@ -13,19 +13,20 @@ const router = new express.Router();
  *
  **/
 
-router.post("/", async function (req, res, next) {
+router.post("/login", async function (req, res, next) {
   try {
     const { username, password } = req.body;
     const user = await User.authenticate(username, password);
 
     if (user) {
       let token = jwt.sign({ username }, SECRET_KEY);
-      User.updateLoginTimestamp(username);
+      await User.updateLoginTimestamp(username);
       return res.json({ token });
     }
     
     throw new ExpressError("Invalid user/password", 400);
   } catch (err) {
+    console.error("/login", err);
     return next(err);
   }
 });
@@ -40,17 +41,19 @@ router.post("/", async function (req, res, next) {
 
 router.post("/register", async function (req, res, next) {
   try {
-    const { username, password, first_name, last_name, phone } = req.body;
-    const user = await User.register(username, password, first_name, last_name, phone);
+    const user = await User.register(req.body);
 
     if (user) {
-      let token = jwt.sign({ username }, SECRET_KEY);
-      User.updateLoginTimestamp(username);
+      let token = jwt.sign({ username: req.body.username }, SECRET_KEY);
+      // console.log("/register token", token);
+
+      await User.updateLoginTimestamp(req.body.username);
       return res.json({ token });
     }
 
     throw new ExpressError("Unable to register", 400);
   } catch (err) {
+    // console.error(err);
     return next(err);
   }
 });

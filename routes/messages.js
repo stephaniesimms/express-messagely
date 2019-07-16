@@ -90,6 +90,17 @@ router.post("/:id/read", ensureLoggedIn, async function (req, res, next) {
   }
 });
 
+router.post("/twilio", async function (req, res, next) {
+  try {
+    const message = await Message.sendTwilio();
+
+    return res.json({ message });
+
+  } catch (err) {
+    return next(err);
+  }
+});
+
 
 
 module.exports = router;

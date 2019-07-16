@@ -12,8 +12,8 @@ class User {
    *    {username, password, first_name, last_name, phone}
    */
 
-  static async register(username, password, first_name, last_name, phone) {
-
+  static async register({username, password, first_name, last_name, phone}) {
+    // console.log("User.register", password, BCRYPT_WORK_FACTOR);
     let hashedPassword = await bcrypt.hash(password, BCRYPT_WORK_FACTOR);
 
     const result = await db.query(
@@ -72,7 +72,7 @@ class User {
 
   static async all() {
     const results = await db.query(
-      `SELECT username, first_name, last_name 
+      `SELECT username, first_name, last_name, phone 
       FROM users`
     );
 

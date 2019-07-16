@@ -2,11 +2,26 @@
 
 const db = require("../db");
 const ExpressError = require("../expressError");
+const { TWILIO_ACCOUNTSID, TWILIO_AUTH_TOKEN} = require('../config');
+const client = require('twilio')(TWILIO_ACCOUNTSID, TWILIO_AUTH_TOKEN);
+
 
 
 /** Message on the site. */
 
 class Message {
+
+  static async sendTwilio() {
+    let newMessage = client.messages
+      .create({
+        body: 'This is the ship that made the Kessel Run in fourteen parsecs?',
+        from: '+19252810678',
+        to: '+19256429339'
+      })
+      .then(message => console.log(message.sid));
+
+      return newMessage;
+  }
 
   /** register new message -- returns
    *    {id, from_username, to_username, body, sent_at}
