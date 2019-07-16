@@ -234,6 +234,6 @@ module.exports = User;
 //   body,
 //   sent_at)
 //  VALUES('Stephanie',
-//   'Hekmat',
+//   'taco',
 //   'AHOY!',
 //   current_timestamp);
